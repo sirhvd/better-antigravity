@@ -1,0 +1,62 @@
+name: Build VSIX
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Checkout extension
+      - name: Checkout Extension
+        uses: actions/checkout@v4
+        with:
+          path: better-antigravity
+
+      # 2. Checkout SDK (Nhớ thay username/repo-name thật của bạn)
+      - name: Checkout Antigravity SDK
+        uses: actions/checkout@v4
+        with:
+          repository: Kanezal/antigravity-sdk
+          path: antigravity-sdk
+
+      # 3. Setup Node.js v20 (để tránh lỗi undici/File is not defined)
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # 4. Build SDK trước
+      - name: Build Antigravity SDK
+        run: |
+          cd antigravity-sdk
+          npm install
+          npm run build
+
+      # 5. Build và Đóng gói Extension
+      - name: Build and Package Extension
+        run: |
+          cd better-antigravity
+          npm install
+          npm run build
+          # Tạo thư mục out trước nếu script package không tự tạo
+          mkdir -p out
+          npm run package
+          
+          # Lệnh kiểm tra xem file đã nằm đúng chỗ chưa
+          echo "--- Kiểm tra file trong thư mục out ---"
+          ls -l out/
+
+      # 6. Upload file VSIX lên GitHub Artifacts
+      - name: Upload VSIX Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: better-antigravity-vsix
+          # Khớp chính xác với đường dẫn --out trong package.json của bạn
+          path: better-antigravity/out/better-antigravity.vsix
+          # Nếu không thấy file, workflow sẽ báo lỗi đỏ ngay lập tức
+          if-no-files-found: error
